@@ -3,6 +3,8 @@
 # convert swiftlint's output into GitHub Actions Logging commands
 # https://help.github.com/en/github/automating-your-workflow-with-github-actions/development-tools-for-github-actions#logging-commands
 
+git config --global --add safe.directory /github/workspace
+
 function stripPWD() {
     if ! ${WORKING_DIRECTORY+false};
     then
@@ -22,13 +24,16 @@ fi
 
 if ! ${DIFF_BASE+false};
 then
-	changedFiles=$(git --no-pager diff --name-only --relative FETCH_HEAD $(git merge-base FETCH_HEAD $DIFF_BASE) -- '*.swift')
+	echo "Finding changed Swift files against origin/${DIFF_BASE}..."
 
-	if [ -z "$changedFiles" ]
-	then
-		echo "No Swift file changed"
-		exit
-	fi
+    changedFiles=$(git diff --name-only "origin/${DIFF_BASE}...HEAD" -- '*.swift')
+
+    if [ -z "$changedFiles" ]; then
+        echo "No Swift file changed"
+        exit 0
+    fi
+    echo "Files to lint:"
+    echo "$changedFiles"
 fi
 
 set -o pipefail && swiftlint "$@" -- $changedFiles | stripPWD | convertToGitHubActionsLoggingCommands
